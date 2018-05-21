@@ -1,6 +1,7 @@
 import ast
 import csv
 import click
+import multiprocessing as mp
 import os
 import pathlib
 import shutil
@@ -28,7 +29,6 @@ def move_to_set(path):
 
 
 def load_files(path):
-    # click.echo('load files from {}'.format(path))
     return set(os.listdir(path))
 
 
@@ -63,6 +63,17 @@ def cal(image_dir, relocation_dir, method, pollution):
     execute(cmnd)
 
 
+def detect_task(t):
+    (path, m, p) = t
+    image_dir = '{}-{}-{}'.format(path, m, p)
+    copy_image(path, image_dir)
+
+    relocation_dir = '{}-outlier'.format(image_dir)
+    shutil.rmtree(relocation_dir, ignore_errors=True)
+
+    os.makedirs(relocation_dir)
+    cal(image_dir, relocation_dir, m, p)
+
 @click.group()
 def cli():
     pass
@@ -75,7 +86,10 @@ def cli():
 @click.option('--pollutions', default=range(41))
 def detect(basepath, methods, pollutions):
     path = move_to_set(basepath)
-    params = [(m, p) for m in methods for p in pollutions]
+    params = [(path, m, p) for m in methods for p in pollutions]
+    pool = mp.Pool()
+    pool.map(detect_task, params)
+    '''
     for m, p in params:
         image_dir = '{}-{}-{}'.format(path, m, p)
         copy_image(path, image_dir)
@@ -85,7 +99,7 @@ def detect(basepath, methods, pollutions):
 
         os.makedirs(relocation_dir)
         cal(image_dir, relocation_dir, m, p)
-
+    '''
 
 @cli.command()
 @click.argument('source-path', type=click.Path(exists=True))
